@@ -45,6 +45,7 @@ describe("MultiRewarder", function () {
         await based.transfer(user1.address, e(1000))
         await based.transfer(user2.address, e(1000))
 
+        await based.connect(deployer).approve(multiRewarder.address, MAX_UINT)
         await based.connect(user1).approve(multiRewarder.address, MAX_UINT)
         await based.connect(user2).approve(multiRewarder.address, MAX_UINT)
     });
@@ -64,7 +65,7 @@ describe("MultiRewarder", function () {
         expect(await multiRewarder.balanceOf(user1.address)).eq(e(100));
     });
 
-    it("Should withdraw lp", async function () {
+    it("Should withdraw based", async function () {
         await multiRewarder.connect(user1).deposit(e(100), user1.address)
         await multiRewarder.connect(user2).deposit(e(150), user2.address)
 
@@ -83,9 +84,42 @@ describe("MultiRewarder", function () {
         expect(await based.balanceOf(user1.address)).eq(e(1100))
     });
 
+    it("Should update whitelist", async function () {
+
+        await expect(multiRewarder.updateWhitelist(rewardToken1.address, true)).to.be.revertedWith('NOT_ENOUGH_BALANCE')
+
+        await multiRewarder.deposit(e(20e3), deployer.address);
+        await expect(multiRewarder.updateWhitelist(rewardToken1.address, true)).to.be.revertedWith('NOT_ENOUGH_BALANCE')
+
+        await multiRewarder.deposit(e(5e3), deployer.address);
+        await multiRewarder.updateWhitelist(rewardToken1.address, true)
+
+        await multiRewarder.deposit(e(5e3), deployer.address);
+        await multiRewarder.updateWhitelist(rewardToken2.address, true)
+
+        await expect(multiRewarder.updateWhitelist(rewardToken1.address, true)).to.be.revertedWith('ALREADY_DONE')
+
+        expect(await multiRewarder.rewardTokensLength()).eq(2)
+        expect(await multiRewarder.isRewardToken(rewardToken1.address)).eq(true)
+        expect(await multiRewarder.isRewardToken(rewardToken2.address)).eq(true)
+        expect(await multiRewarder.rewardTokens(0)).eq(rewardToken1.address)
+        expect(await multiRewarder.rewardTokens(1)).eq(rewardToken2.address)
+
+        await multiRewarder.updateWhitelist(rewardToken1.address, false)
+        expect(await multiRewarder.rewardTokensLength()).eq(1)
+        expect(await multiRewarder.isRewardToken(rewardToken1.address)).eq(false)
+        expect(await multiRewarder.isRewardToken(rewardToken2.address)).eq(true)
+        expect(await multiRewarder.rewardTokens(0)).eq(rewardToken2.address)
+    })
+
     it("Should claim rewards", async function () {
         await multiRewarder.connect(user1).deposit(e(100), user1.address)
         await multiRewarder.connect(user2).deposit(e(300), user2.address)
+
+        await multiRewarder.deposit(e(25e3), deployer.address);
+        await multiRewarder.updateWhitelist(rewardToken1.address, true)
+        await multiRewarder.updateWhitelist(rewardToken2.address, true)
+        await multiRewarder.withdraw(e(25e3), deployer.address);
 
         await multiRewarder.notifyRewardAmount(
             [rewardToken1.address, rewardToken2.address],
