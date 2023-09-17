@@ -117,7 +117,7 @@ contract MultiRewarder is ReentrancyGuard {
         emit Withdraw(msg.sender, amount, to);
     }
 
-    function getReward() public nonReentrant updateReward(msg.sender) {
+    function getReward() external nonReentrant updateReward(msg.sender) {
         for (uint256 i; i < rewardTokens.length; i++) {
             address _rewardsToken = rewardTokens[i];
             uint256 reward = rewards[msg.sender][_rewardsToken];
@@ -127,6 +127,27 @@ contract MultiRewarder is ReentrancyGuard {
                 emit RewardPaid(msg.sender, _rewardsToken, reward);
             }
         }
+    }
+
+    function updateWhitelist(address token, bool whitelist) external {
+        require(balanceOf[msg.sender] >= 25_000e18, "NOT_ENOUGH_BALANCE");
+        require(isRewardToken[token] != whitelist, "ALREADY_DONE");
+
+        isRewardToken[token] = whitelist;
+        if (!whitelist) {
+            for (uint256 i; i < rewardTokens.length; i++) {
+                if (rewardTokens[i] == token) {
+                    rewardTokens[i] = rewardTokens[rewardTokens.length - 1];
+                    rewardTokens.pop();
+                    return;
+                }
+            }
+        } else {
+            rewardTokens.push(token);
+            rewardData[token].rewardsDuration = defaultRewardsDuration;
+        }
+
+        emit UpdateWhitelist(token, whitelist);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
@@ -141,12 +162,7 @@ contract MultiRewarder is ReentrancyGuard {
 
             if (reward == 0) continue;
 
-            if (!isRewardToken[_rewardsToken]) {
-                rewardTokens.push(_rewardsToken);
-                rewardData[_rewardsToken]
-                    .rewardsDuration = defaultRewardsDuration;
-                isRewardToken[_rewardsToken] = true;
-            }
+            require(isRewardToken[_rewardsToken], "NOT_WHITELISTED");
 
             IERC20(_rewardsToken).safeTransferFrom(
                 msg.sender,
@@ -197,10 +213,7 @@ contract MultiRewarder is ReentrancyGuard {
     event RewardAdded(address[] rewradsToken, uint256[] reward);
     event Deposit(address sender, uint256 amount, address receiver);
     event Withdraw(address sender, uint256 amount, address to);
-    event RewardPaid(
-        address user,
-        address rewardsToken,
-        uint256 reward
-    );
+    event RewardPaid(address user, address rewardsToken, uint256 reward);
     event RewardsDurationUpdated(address token, uint256 newDuration);
+    event UpdateWhitelist(address token, bool whitelist);
 }
