@@ -20,7 +20,7 @@ contract MultiRewarder is ReentrancyGuard {
     }
 
     uint256 public constant defaultRewardsDuration = 1 weeks;
-    address public based;
+    address public immutable based;
 
     // reward token => reward data
     mapping(address => Reward) public rewardData;
