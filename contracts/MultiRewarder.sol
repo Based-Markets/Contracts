@@ -139,7 +139,7 @@ contract MultiRewarder is ReentrancyGuard {
                 if (rewardTokens[i] == token) {
                     rewardTokens[i] = rewardTokens[rewardTokens.length - 1];
                     rewardTokens.pop();
-                    return;
+                    break;
                 }
             }
         } else {
